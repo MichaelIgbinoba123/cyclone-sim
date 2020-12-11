@@ -1,6 +1,6 @@
 // ---- Simulation Modes ---- //
 
-const SIMULATION_MODES = ['Normal','Hyper','Wild','Megablobs','Experimental']; // Labels for sim mode selector UI
+const SIMULATION_MODES = ['Semi-Realistic','Hyper','Wild','Megablobs','Experimental']; // Labels for sim mode selector UI
 const SIM_MODE_NORMAL = 0;
 const SIM_MODE_HYPER = 1;
 const SIM_MODE_WILD = 2;
@@ -45,7 +45,7 @@ SPAWN_RULES[SIM_MODE_EXPERIMENTAL] = {};
 SPAWN_RULES.defaults.archetypes = {
     'tw': {
         x: ()=>random(0,WIDTH-1),
-        y: (b)=>b.hemY(random(HEIGHT*0.7,HEIGHT*0.9)),
+        y: (b)=>b.hemY(random(HEIGHT*0.58,HEIGHT*0.9)),
         pressure: [1000, 1020],
         windSpeed: [15, 35],
         type: TROPWAVE,
@@ -129,7 +129,7 @@ SPAWN_RULES.defaults.archetypes = {
     },
     '5': {
         inherit: 'tc',
-        pressure: 925,
+        pressure: [925, 930],
         windSpeed: 145
     },
     '6': {
@@ -166,7 +166,7 @@ SPAWN_RULES.defaults.archetypes = {
 
 SPAWN_RULES.defaults.doSpawn = function(b){
     // tropical waves
-    if(random()<0.015*sq((seasonalSine(b.tick)+1)/2)) b.spawnArchetype('tw');
+    if(random()<0.014*sq((seasonalSine(b.tick)+1.01)/2)) b.spawnArchetype('tw');
 
     // extratropical cyclones
     if(random()<0.01-0.002*seasonalSine(b.tick)) b.spawnArchetype('ex');
@@ -329,10 +329,10 @@ ENV_DEFS.defaults.jetstream = {
         [4,0.5,160,300,1,2]
     ],
     modifiers: {
-        peakLat: 0.35,
-        antiPeakLat: 0.55,
-        peakRange: 0.35,
-        antiPeakRange: 0.5
+        peakLat: 0.25,
+        antiPeakLat: 0.47,
+        peakRange: 0.25,
+        antiPeakRange: 0.45
     }
 };
 ENV_DEFS[SIM_MODE_NORMAL].jetstream = {};
@@ -375,17 +375,17 @@ ENV_DEFS.defaults.LLSteering = {
         // Jetstream
         let j = u.field('jetstream');
         // Cosine curve from 0 at poleward side of map to 1 at equatorward side
-        let h = map(cos(map(y,0,HEIGHT,0,PI)),-1,1,1,0);
+        let h = map(cos(map(y,0,HEIGHT,0,PI)),-1.25,0.5,0.5,0);
         // westerlies
-        let west = constrain(pow(1-h+map(u.noise(0),0,1,-0.3,0.3)+map(j,0,HEIGHT,-0.4,0.4),2)*4,0,4);
+        let west = constrain(pow(1-h+map(u.noise(0),0,1,-0.3,0.3)+map(j,0,HEIGHT,-0.3,0.3),2)*4,0,4);
         // ridging and trades
-        let ridging = constrain(u.noise(1)+map(j,0,HEIGHT,0.3,-0.3),0,1);
-        let trades = constrain(pow(h+map(ridging,0,1,-0.3,0.3),2)*3,0,3);
-        let tAngle = map(h,0.9,1,511*PI/512,17*PI/16); // trades angle
+        let ridging = constrain(u.noise(1)+map(j,0,HEIGHT,0.5,-0.5),0,1);
+        let trades = constrain(pow(0.35+h+map(ridging,0,1,-0.1,0.3),2)*3,0,3);
+        let tAngle = map(h,0.9,1,511*PI/512,15.75*PI/16); // trades angle
         // noise angle
         let a = map(u.noise(3),0,1,0,4*TAU);
         // noise magnitude
-        let m = pow(1.5,map(u.noise(2),0,1,-8,4));
+        let m = pow(1.5,map(u.noise(2),4,4,4,4));
 
         // apply to vector
         u.vec.rotate(a);
@@ -455,9 +455,9 @@ ENV_DEFS.defaults.ULSteering = {
         let tAngle = -PI/16;                                                                    // angle of push from jetstream dips
         let ridging = 0.45-j0/HEIGHT-map(sqrt(map(s,-1,1,0,1)),0,1,0.15,0);                     // how much 'ridge' or 'trough' there is from jetstream
         // power of winds equatorward of jetstream
-        let hadley = (map(ridging,-0.3,0.2,u.modifiers.hadleyUpperBound,1.5,true)+map(m,0,1,-1.5,1.5))*jOP*(y>j0?1:0);
+        let hadley = (map(ridging,-0.3,0.25,u.modifiers.hadleyUpperBound,1.5,true)+map(m,0,1,-1.5,1.5))*jOP*(y>j0?1:0);
         // angle of winds equatorward of jetstream
-        let hAngle = map(ridging,-0.3,0.2,-PI/16,-15*PI/16,true);
+        let hAngle = map(ridging,-0.3,0.25,-PI/16,-15*PI/16,true);
         let ferrel = 2*jOP*(y<j0?1:0);                                                          // power of winds poleward of jetstream
         let fAngle = 5*PI/8;                                                                    // angle of winds poleward of jetstream
 
@@ -593,7 +593,7 @@ ENV_DEFS.defaults.SSTAnomaly = {
         v = log(v);
         let r;
         if(u.modifiers.r!==undefined) r = u.modifiers.r;
-        else r = map(y,0,HEIGHT,6,3);
+        else r = map(y,0,HEIGHT,3,6);
         v = -r*v;
         v = v*i;
         if(u.modifiers.bigBlobBase!==undefined && v>u.modifiers.bigBlobExponentThreshold) v += pow(u.modifiers.bigBlobBase,v-u.modifiers.bigBlobExponentThreshold)-1;
@@ -651,7 +651,7 @@ ENV_DEFS.defaults.SST = {
         if(y<0) return 0;
         let anom = u.field('SSTAnomaly');
         let s = seasonalSine(z);
-        let w = map(cos(map(x,0,WIDTH,0,PI)),-1,1,0,1);
+        let w = map(cos(map(x,0,WIDTH,0,PI)),-1,1,0.8,1);
         let h0 = y/HEIGHT;
         let h1 = (sqrt(h0)+h0)/2;
         let h2 = sqrt(sqrt(h0));
@@ -688,9 +688,9 @@ ENV_DEFS.defaults.SST = {
     oceanic: true,
     modifiers: {
         offSeasonPolarTemp: -3,
-        peakSeasonPolarTemp: 10,
-        offSeasonTropicsTemp: 26,
-        peakSeasonTropicsTemp: 29
+        peakSeasonPolarTemp: 0,
+        offSeasonTropicsTemp: 25,
+        peakSeasonTropicsTemp: 28
     }
 };
 ENV_DEFS[SIM_MODE_NORMAL].SST = {};
@@ -760,8 +760,8 @@ ENV_DEFS.defaults.moisture = {
     },
     modifiers: {
         polarMoisture: 0.43,
-        tropicalMoisture: 0.57,
-        mountainMoisture: 0.2
+        tropicalMoisture: 0.6,
+        mountainMoisture: 0.19
     },
     noiseChannels: [
         [4,0.5,120,120,0.3,2]
@@ -837,14 +837,25 @@ STORM_ALGORITHM.defaults.core = function(sys,u){
     let nontropicalness = constrain(map(sys.lowerWarmCore,0.75,0,0,1),0,1);
 
     sys.organization *= 100;
-    if(!lnd) sys.organization += sq(map(SST,20,29,0,1,true))*3*tropicalness;
+    if(!lnd && SST < 28.3) sys.organization += sq(map(SST,20,29,0,1,true))*2.9*tropicalness;
     if(!lnd && sys.organization<40) sys.organization += lerp(0,3,nontropicalness);
     // if(lnd) sys.organization -= pow(10,map(lnd,0.5,1,-3,1));
     // if(lnd && sys.organization<70 && moisture>0.3) sys.organization += pow(5,map(moisture,0.3,0.5,-1,1,true))*tropicalness;
     sys.organization -= pow(2,4-((HEIGHT-sys.basin.hemY(sys.pos.y))/(HEIGHT*0.01)));
-    sys.organization -= (pow(map(sys.depth,0,1,1.17,1.31),shear)-1)*map(sys.depth,0,1,4.7,1.2);
-    sys.organization -= map(moisture,0,0.65,3,0,true)*shear;
+    if (sys.organization < 78) {
+        sys.organization -= (pow(map(sys.depth,0,1,1.17,1.31),shear)-1)*map(sys.depth,0,1,4.7,1.2);
+        sys.organization -= map(moisture,0,0.65,3,0,true)*shear;
+    }
+    else {
+        sys.organization -= (pow(map(sys.depth,0,1,1.17,1.31),shear*0.9)-1)*map(sys.depth,0,1,4.7,1.2);
+        sys.organization -= map(moisture*1.5,0,0.65,3,0,true)*shear*0.9;
+    }
+    if(!lnd && SST>=20 && SST<24 && Math.round(random(0,8)) == 7) sys.organization += (pow(10*(moisture-moisture/2),2.4)/9.3) - shear*1.1;
+    if(!lnd && SST>=24 && sys.organization < 50) sys.organization += (pow(10*(moisture-moisture/1.75),2.4)/9.3) - shear*1.1 + (SST/12)/2.5;
+    if(!lnd && SST>=24 && sys.organization >= 50 && sys.organization < 85) sys.organization += (pow(10*(moisture-moisture/(1.69)),2.5)/9.2)- shear*1.05 + (SST/12)/2.5;
+    if(!lnd && SST>=24 && sys.organization >= 85) sys.organization += (pow(10*(moisture-moisture/(1.6)),2.7)/9.2) - shear*0.8 + (SST/12)/2.5;
     sys.organization += sq(map(moisture,0.6,1,0,1,true))*4;
+    if(Math.round(random(1,110 - shear + sys.organization/10)) == 2) sys.organization -= Math.round(random(4,11)); //EWRC
     sys.organization -= pow(1.3,20-SST)*tropicalness;
     sys.organization = constrain(sys.organization,0,100);
     sys.organization /= 100;
